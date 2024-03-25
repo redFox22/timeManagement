@@ -21,7 +21,14 @@ class TimeManagement:
     def __init__(self, root):
         self.root = root
         self.root.title("ITeD")
-        self.timers = {"Assistenza": 0, "Aree_Esistenti": 0, "Organizzazioni": 0, "Sito_internet" : 0, "Pausa": 0, "Corso": 0}
+        self.timers = {
+            "Assistenza": {"duration": 0, "start": None, "end": None}, 
+            "Aree_Esistenti": {"duration": 0, "start": None, "end": None},
+            "Organizzazioni": {"duration": 0, "start": None, "end": None}, 
+            "Sito_internet": {"duration": 0, "start": None, "end": None}, 
+            "Pausa": {"duration": 0, "start": None, "end": None}, 
+            "Corso": {"duration": 0, "start": None, "end": None}
+        }
         self.current_timer = None
         self.start_time = None
         self.active_button = None
@@ -33,31 +40,39 @@ class TimeManagement:
         return minuti
     
     def start_timer(self, category):
+        end_time = datetime.now()
         if self.current_timer:
-            self.timers[self.current_timer] +=  self.seconds_to_minutes(time.time() - self.start_time)
+            self.write_activity_to_csv(self.current_timer, self.timers[self.current_timer]['start'], end_time)
+            self.timers[self.current_timer]['duration'] += self.seconds_to_minutes((end_time - self.timers[self.current_timer]['start']).total_seconds())
         self.current_timer = category
-        self.start_time = time.time()
+        if category not in self.timers:
+            self.timers[category] = {'duration': 0, 'start': end_time, 'end': None}
+        else:
+            self.timers[category]['start'] = end_time
+            self.timers[category]['end'] = None
 
     def end_day(self):
         if self.current_timer:
-            self.timers[self.current_timer] += time.time() - self.start_time
-            self.timers[self.current_timer] = self.seconds_to_minutes(self.timers[self.current_timer])
-            self.current_timer = None
-        messagebox.showinfo("Riepilogo Giornaliero", "\n".join(f"{k}: {v} minuti" for k, v in self.timers.items()))
-        self.active_button.config(image=self.button_images[self.active_button])
+            end_time = datetime.now()
+            self.write_activity_to_csv(self.current_timer, self.timers[self.current_timer]['start'], end_time)
+            self.timers[self.current_timer]['duration'] += self.seconds_to_minutes((end_time - self.timers[self.current_timer]['start']).total_seconds())
+            self.current_timer = None  
+
+        messagebox.showinfo("Riepilogo Giornaliero", "\n".join(f"{k}: {v['duration']} minuti" for k, v in self.timers.items()))
+        self.reset_buttons()  # Resetta i bottoni
+        self.timers = {k: {'duration': 0, 'start': None, 'end': None} for k in self.timers}  # Resetta i timer
+    
+    
+    def write_activity_to_csv(self, category, start_time, end_time):
         filename = f"ITeD-giornata_lavorativa.{datetime.now().strftime('%Y%m%d')}.csv"
         file_exists = os.path.isfile(filename)
-        with open(filename, 'a', newline='') as csvfile: 
+        with open(filename, 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            end_session_str = f"Sessione terminata il {datetime.now().strftime('%d/%m/%Y')} alle ore {datetime.now().strftime('%H:%M')}"
-            start_session_str = f"Sessione iniziata il {self.start_session.strftime('%d/%m/%Y')} alle ore {datetime.now().strftime('%H:%M')}"
             if not file_exists:
-                writer.writerow(['Categoria', 'Tempo (minuti)'])
-            writer.writerow(start_session_str)
-            for category, time_spent in self.timers.items():
-                writer.writerow([category, time_spent])
-            writer.writerow(end_session_str)
-        self.timers = {k: 0 for k in self.timers}
+                writer.writerow(['Categoria', 'Inizio', 'Fine', 'Durata (minuti)'])
+            duration = self.seconds_to_minutes((end_time - start_time).total_seconds())
+            writer.writerow([category, start_time.strftime('%Y-%m-%d %H:%M:%S'), end_time.strftime('%Y-%m-%d %H:%M:%S'), duration])
+
     
     def change_button_image(self, new_active_button, default_image, active_image):
         print("E' stato cliccato il bottone " + str(new_active_button))
@@ -67,6 +82,11 @@ class TimeManagement:
             self.active_button.config(image=self.button_images[self.active_button])
         new_active_button.config(image=active_image)
         self.active_button = new_active_button
+
+    def reset_buttons(self):
+        for button in self.button_images:
+            button.config(image=self.button_images[button])
+        self.active_button = None
 
 
 
