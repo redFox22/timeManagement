@@ -6,6 +6,8 @@ import csv
 from datetime import datetime
 import os
 from datetime import datetime
+import threading
+from datetime import datetime, timedelta
 
 current_folder_path = os.getcwd()
 print(current_folder_path)
@@ -88,6 +90,24 @@ class TimeManagement:
             button.config(image=self.button_images[button])
         self.active_button = None
 
+    
+    def start_thread_riepilogo(self):
+        def auto_summary():
+            while True:
+                now = datetime.now()
+                weekday = now.weekday() 
+                
+                if weekday in [0, 1, 2] and now.hour == 18 and now.minute == 30: # lunedi, martedì e mercoledi
+                    self.end_day()
+
+                elif weekday in [3, 4] and now.hour == 14 and now.minute == 0:
+                    self.end_day()
+
+                time.sleep(60)
+
+
+        threading.Thread(target=auto_summary, daemon=True).start()
+
 
 
 window = Tk()
@@ -95,6 +115,7 @@ window = Tk()
 window.geometry("1026x529")
 window.configure(bg = "#FFFFFF")
 time_manager = TimeManagement(window)
+time_manager.start_thread_riepilogo()
 
 def button_click(button, category, default_image, active_image):
     time_manager.change_button_image(button, default_image, active_image)
